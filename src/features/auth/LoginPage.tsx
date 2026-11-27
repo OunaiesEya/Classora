@@ -13,6 +13,7 @@ import { useAuth } from './AuthProvider'
 import { useToast } from '@/components/ui/Toast'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import supabase from '@/lib/supabase'
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -23,7 +24,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [resetLoading, setResetLoading] = useState(false)
 
+  // Connexion
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -43,10 +46,50 @@ export default function LoginPage() {
     }
   }
 
+  // Réinitialisation du mot de passe
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      toast({
+        type: 'error',
+        title: 'Adresse e-mail requise',
+        message: 'Entre ton adresse e-mail avant de demander un nouveau mot de passe.',
+      })
+      return
+    }
+
+    setResetLoading(true)
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim(),
+      {
+        redirectTo: `${window.location.origin}/reset-password`,
+      }
+    )
+
+    setResetLoading(false)
+
+    if (error) {
+      toast({
+        type: 'error',
+        title: 'Erreur',
+        message: error.message,
+      })
+      return
+    }
+
+    toast({
+      type: 'success',
+      title: 'E-mail envoyé',
+      message: 'Vérifie ta boîte mail pour recevoir le lien de réinitialisation.',
+    })
+  }
+
   return (
     <div className="min-h-screen bg-[var(--color-ivory)] flex">
+
       {/* Left Panel — Branding */}
       <div className="hidden lg:flex flex-col justify-between w-[460px] flex-shrink-0 bg-[var(--color-forest)] p-10 relative overflow-hidden">
+
         {/* Decorative circles */}
         <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/5" />
         <div className="absolute bottom-20 -left-10 w-60 h-60 rounded-full bg-white/5" />
@@ -99,9 +142,9 @@ export default function LoginPage() {
           </h2>
 
           <p className="text-white/60 text-sm leading-relaxed mb-8">
-            Gérez votre école primaire en toute simplicité — notes, présences,
-            devoirs, messagerie et bien plus, le tout depuis une seule
-            plateforme.
+            Gérez votre école primaire en toute simplicité — notes,
+            présences, devoirs, messagerie et bien plus, le tout depuis
+            une seule plateforme.
           </p>
 
           {/* Feature Pills */}
@@ -113,11 +156,7 @@ export default function LoginPage() {
           ].map(f => (
             <div key={f} className="flex items-center gap-2 mb-2">
               <div className="w-5 h-5 rounded-full bg-[var(--color-sage)] flex items-center justify-center flex-shrink-0">
-                <svg
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  className="w-3 h-3"
-                >
+                <svg viewBox="0 0 12 12" fill="none" className="w-3 h-3">
                   <path
                     d="M2 6l3 3 5-5"
                     stroke="white"
@@ -141,6 +180,7 @@ export default function LoginPage() {
       {/* Right Panel — Login Form */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
+
           {/* Mobile Logo */}
           <div className="lg:hidden flex items-center gap-2 mb-8">
             <div className="w-9 h-9 rounded-xl bg-[var(--color-forest)] flex items-center justify-center">
@@ -161,6 +201,7 @@ export default function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4 mb-6">
+
             <Input
               id="login-email"
               label="Adresse e-mail"
@@ -187,7 +228,9 @@ export default function LoginPage() {
                   onClick={() => setShowPw(s => !s)}
                   className="hover:text-[var(--color-forest)] transition-colors"
                   aria-label={
-                    showPw ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+                    showPw
+                      ? 'Masquer le mot de passe'
+                      : 'Afficher le mot de passe'
                   }
                 >
                   {showPw ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -196,6 +239,18 @@ export default function LoginPage() {
               required
               autoComplete="current-password"
             />
+
+            {/* Mot de passe oublié */}
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={resetLoading}
+              className="text-sm text-right text-[var(--color-forest)] hover:underline disabled:opacity-50"
+            >
+              {resetLoading
+                ? 'Envoi en cours...'
+                : 'Mot de passe oublié ?'}
+            </button>
 
             <Button
               type="submit"
@@ -208,8 +263,9 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          {/* Register Link */}
           <p className="text-sm text-center mt-4">
-            Vous n’avez pas de compte ?{' '}
+            Vous n'avez pas de compte ?{' '}
             <button
               type="button"
               onClick={() => navigate('/register')}
@@ -218,6 +274,7 @@ export default function LoginPage() {
               Créer un compte
             </button>
           </p>
+
         </div>
       </div>
     </div>

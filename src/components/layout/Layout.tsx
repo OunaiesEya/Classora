@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, BarChart3,
   ClipboardCheck, DollarSign, FileText, MessageSquare,
   Megaphone, History, Shield, Settings, LogOut, ChevronLeft,
-  GraduationCap, Home, Bell, Menu
+  GraduationCap, Home, Bell, Menu, ShieldCheck , Building2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/features/auth/AuthProvider'
@@ -12,23 +12,54 @@ import { Avatar } from '@/components/ui/Avatar'
 import type { UserRole } from '@/types'
 
 // ─── Nav Items per Role ────────────────────────────────────────────────────────
-interface NavItem { label: string; path: string; icon: React.ReactNode; roles: UserRole[] }
+interface NavItem {
+  label: string
+  path: string
+  icon: React.ReactNode
+  roles: UserRole[]
+  superAdminOnly?: boolean
+}
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Tableau de bord', path: '/dashboard',   icon: <LayoutDashboard size={18} />, roles: ['admin','enseignant','parent','eleve','secretariat'] },
-  { label: 'Élèves',          path: '/students',    icon: <Users size={18} />,           roles: ['admin','secretariat'] },
-  { label: 'Classes',         path: '/classes',     icon: <BookOpen size={18} />,        roles: ['admin','enseignant'] },
-  { label: 'Emploi du temps', path: '/timetable',   icon: <Calendar size={18} />,        roles: ['admin','enseignant','eleve'] },
-  { label: 'Notes',           path: '/grades',      icon: <BarChart3 size={18} />,       roles: ['admin','enseignant','secretariat','parent','eleve'] },
-  { label: 'Présences',       path: '/attendance',  icon: <ClipboardCheck size={18} />,  roles: ['admin','enseignant','parent'] },
-  { label: 'Scolarité',       path: '/fees',        icon: <DollarSign size={18} />,      roles: ['admin','secretariat','parent'] },
-  { label: 'Devoirs',         path: '/homework',    icon: <FileText size={18} />,        roles: ['admin','enseignant','parent','eleve'] },
-  { label: 'Messages',        path: '/messages',    icon: <MessageSquare size={18} />,   roles: ['admin','enseignant','parent','eleve','secretariat'] },
-  { label: 'Annonces',        path: '/announcements',icon: <Megaphone size={18} />,     roles: ['admin','enseignant','parent','eleve','secretariat'] },
-  { label: 'Historique',      path: '/history',     icon: <History size={18} />,         roles: ['admin','secretariat'] },
-  { label: 'Audit',           path: '/audit',       icon: <Shield size={18} />,          roles: ['admin'] },
-  { label: 'Paramètres',      path: '/settings',    icon: <Settings size={18} />,        roles: ['admin'] },
+  // Navigation des utilisateurs de chaque école
+  { label: 'Tableau de bord', path: '/dashboard', icon: <LayoutDashboard size={18} />, roles: ['admin', 'enseignant', 'parent', 'eleve', 'secretariat'] },
+  { label: 'Élèves', path: '/students', icon: <Users size={18} />, roles: ['admin', 'secretariat'] },
+  { label: 'Classes', path: '/classes', icon: <BookOpen size={18} />, roles: ['admin', 'enseignant'] },
+  { label: 'Emploi du temps', path: '/timetable', icon: <Calendar size={18} />, roles: ['admin', 'enseignant', 'eleve'] },
+  { label: 'Notes', path: '/grades', icon: <BarChart3 size={18} />, roles: ['admin', 'enseignant', 'secretariat', 'parent', 'eleve'] },
+  { label: 'Présences', path: '/attendance', icon: <ClipboardCheck size={18} />, roles: ['admin', 'enseignant', 'parent'] },
+  { label: 'Scolarité', path: '/fees', icon: <DollarSign size={18} />, roles: ['admin', 'secretariat', 'parent'] },
+  { label: 'Devoirs', path: '/homework', icon: <FileText size={18} />, roles: ['admin', 'enseignant', 'parent', 'eleve'] },
+  { label: 'Messages', path: '/messages', icon: <MessageSquare size={18} />, roles: ['admin', 'enseignant', 'parent', 'eleve', 'secretariat'] },
+  { label: 'Annonces', path: '/announcements', icon: <Megaphone size={18} />, roles: ['admin', 'enseignant', 'parent', 'eleve', 'secretariat'] },
+  { label: 'Historique', path: '/history', icon: <History size={18} />, roles: ['admin', 'secretariat'] },
+  { label: 'Audit', path: '/audit', icon: <Shield size={18} />, roles: ['admin'] },
+  { label: 'Paramètres', path: '/settings', icon: <Settings size={18} />, roles: ['admin'] },
+
+  // Navigation réservée au Super Admin Classora
+  {
+    label: 'Administration Classora',
+    path: '/super-admin',
+    icon: <ShieldCheck size={18} />,
+    roles: [],
+    superAdminOnly: true,
+  },
+  {
+    label: 'Gestion des écoles',
+    path: '/super-admin/schools',
+    icon: <Building2 size={18} />,
+    roles: [],
+    superAdminOnly: true,
+  },
+  {
+  label: 'Gestion des utilisateurs',
+  path: '/super-admin/users',
+  icon: <Users size={18} />,
+  roles: [],
+  superAdminOnly: true,
+},
 ]
+
 
 // ─── Logo ──────────────────────────────────────────────────────────────────────
 function ClassoraLogo({ collapsed = false }: { collapsed?: boolean }) {
@@ -54,12 +85,12 @@ function ClassoraLogo({ collapsed = false }: { collapsed?: boolean }) {
 // ─── Sidebar ───────────────────────────────────────────────────────────────────
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
-  const { user, logout, isRole } = useAuth()
+  const { user, logout, isRole, isSuperAdmin } = useAuth()
   const navigate = useNavigate()
-
-  const visibleItems = NAV_ITEMS.filter(item =>
-    user && isRole(...item.roles)
-  )
+const visibleItems = NAV_ITEMS.filter(item => {
+  if (item.superAdminOnly) return isSuperAdmin
+  return !isSuperAdmin && user && isRole(...item.roles)
+})
 
   return (
     <aside className={cn(
@@ -144,9 +175,11 @@ export function TopBar({ title, subtitle, actions }: TopBarProps) {
 
 // ─── Mobile Bottom Nav ─────────────────────────────────────────────────────────
 export function MobileNav() {
-  const { user, isRole } = useAuth()
-  const MOBILE_ITEMS = NAV_ITEMS.slice(0, 5).filter(item => user && isRole(...item.roles))
+  const { user, isRole, isSuperAdmin } = useAuth()
 
+const MOBILE_ITEMS = isSuperAdmin
+  ? NAV_ITEMS.filter(item => item.superAdminOnly)
+  : NAV_ITEMS.filter(item => !item.superAdminOnly && user && isRole(...item.roles)).slice(0, 5)
   return (
     <nav className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-[var(--color-border)] z-40 safe-area-bottom">
       <div className="flex">

@@ -13,6 +13,7 @@ import supabase from '@/lib/supabase'
 interface AuthContextValue {
   user: Profile | null
   loading: boolean
+  isSuperAdmin: boolean
   login: (email: string, password: string) => Promise<{ error?: string }>
   register: (
     fullName: string,
@@ -30,11 +31,34 @@ function digitsCount(value: string): number {
   return value.replace(/\D/g, '').length
 }
 
+// Vérifie le statut Super Admin directement dans Supabase.
+
+async function checkSuperAdmin(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('is_super_admin')
+
+    console.log('SUPABASE is_super_admin - data :', data)
+    console.log('SUPABASE is_super_admin - error :', error)
+
+    if (error) {
+      console.error('Erreur de vérification Super Admin :', error)
+      return false
+    }
+
+    return data === true
+  } catch (error) {
+    console.error('Erreur inattendue Super Admin :', error)
+    return false
+  }
+}
+
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
-  // Restaurer uniquement une session authentifiée par Supabase.
+  // Restaurer la session et vérifier le statut Super Admin.
   useEffect(() => {
     let mounted = true
 
@@ -47,13 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const session = data.session
 
         if (!session?.user) {
-          if (mounted) setUser(null)
+          if (mounted) {
+            setUser(null)
+            setIsSuperAdmin(false)
+          }
           return
         }
 
-        const { data: profile, error: profileError } = await (
-          supabase as any
-        )
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
@@ -61,18 +86,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (profileError || !profile) {
           await supabase.auth.signOut()
-          if (mounted) setUser(null)
+
+          if (mounted) {
+            setUser(null)
+            setIsSuperAdmin(false)
+          }
           return
         }
 
+        const superAdminStatus = await checkSuperAdmin()
+
         if (mounted) {
           setUser(profile as Profile)
+          setIsSuperAdmin(superAdminStatus)
         }
       } catch (error) {
         console.error('Erreur de restauration de session :', error)
 
         if (mounted) {
           setUser(null)
+          setIsSuperAdmin(false)
         }
       } finally {
         if (mounted) setLoading(false)
@@ -86,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Connexion exclusivement via Supabase.
+  // Connexion via Supabase.
   const login = useCallback(
     async (email: string, password: string): Promise<{ error?: string }> => {
       try {
@@ -110,9 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { error: 'Impossible de récupérer votre compte.' }
         }
 
-        const { data: profile, error: profileError } = await (
-          supabase as any
-        )
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
@@ -121,13 +152,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (profileError || !profile) {
           await supabase.auth.signOut()
           setUser(null)
+          setIsSuperAdmin(false)
 
           return {
             error: 'Profil introuvable. Veuillez contacter l’administrateur.',
           }
         }
 
+        const superAdminStatus = await checkSuperAdmin()
+
         setUser(profile as Profile)
+        setIsSuperAdmin(superAdminStatus)
 
         return {}
       } catch {
@@ -155,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           error: 'Le numéro de téléphone doit contenir au moins 8 chiffres.',
         }
       }
+
       const normalizedEmail = email.trim().toLowerCase()
 
       if (!name || !normalizedEmail || !password) {
@@ -185,14 +221,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return { error: 'La création du compte a échoué.' }
         }
 
-        // Supabase peut demander une confirmation par email.
         if (!data.session) {
           return { needsEmailConfirmation: true }
         }
 
-        const { data: profile, error: profileError } = await (
-          supabase as any
-        )
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', data.user.id)
@@ -201,6 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (profileError || !profile) {
           await supabase.auth.signOut()
           setUser(null)
+          setIsSuperAdmin(false)
 
           return {
             error:
@@ -208,7 +242,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
+        const superAdminStatus = await checkSuperAdmin()
+
         setUser(profile as Profile)
+        setIsSuperAdmin(superAdminStatus)
 
         return {}
       } catch {
@@ -222,6 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     setUser(null)
+    setIsSuperAdmin(false)
     void supabase.auth.signOut()
   }, [])
 
@@ -238,6 +276,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         loading,
+        isSuperAdmin,
         login,
         register,
         logout,
