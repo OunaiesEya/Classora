@@ -1,3 +1,4 @@
+
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { Sidebar, MobileNav } from '@/components/layout/Layout'
 import { AuthProvider } from '@/features/auth/AuthProvider'
@@ -5,6 +6,7 @@ import { ToastProvider } from '@/components/ui/Toast'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import type { UserRole } from '@/types'
 
+import ResetPasswordPage from '@/features/auth/ResetPasswordPage'
 import LoginPage from '@/features/auth/LoginPage'
 import RegisterPage from '@/features/auth/registerpage'
 import DashboardPage from '@/features/dashboard/DashboardPage'
@@ -18,10 +20,18 @@ import MessagesPage from '@/features/messages/MessagesPage'
 import TimetablePage from '@/features/timetable/TimetablePage'
 import UsersAdminPage from '@/features/settings/UsersAdminPage'
 
-const ALL_ROLES: UserRole[] = ['admin', 'enseignant', 'parent', 'eleve', 'secretariat']
+import SuperAdminDashboard from '@/features/super-admin/SuperAdminDashboard'
+import SchoolsManagementPage from '@/features/super-admin/SchoolsManagementPage'
+import UsersManagementPage from '@/features/super-admin/UsersManagementPage'
 
-// Coquille de l'application : visible uniquement après connexion.
-// Chaque page déclare les rôles autorisés, conformément au menu de Layout.tsx.
+const ALL_ROLES: UserRole[] = [
+  'admin',
+  'enseignant',
+  'parent',
+  'eleve',
+  'secretariat',
+]
+
 function AppShell() {
   return (
     <div className="flex min-h-screen bg-[var(--color-ivory)]">
@@ -29,6 +39,22 @@ function AppShell() {
 
       <div className="flex-1 min-w-0">
         <Routes>
+          {/* Administration Super Admin */}
+          <Route element={<ProtectedRoute requireSuperAdmin />}>
+            <Route
+              path="/super-admin"
+              element={<SuperAdminDashboard />}
+            />
+            <Route
+              path="/super-admin/schools"
+              element={<SchoolsManagementPage />}
+            />
+            <Route
+              path="/super-admin/users"
+              element={<UsersManagementPage />}
+            />
+          </Route>
+
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
           <Route element={<ProtectedRoute roles={ALL_ROLES} />}>
@@ -80,11 +106,12 @@ function AppShell() {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Routes publiques : accessibles sans connexion */}
+      {/* Routes publiques */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-      {/* Toute autre adresse exige une session valide */}
+      {/* Routes protégées */}
       <Route element={<ProtectedRoute />}>
         <Route path="/*" element={<AppShell />} />
       </Route>
